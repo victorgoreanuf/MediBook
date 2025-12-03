@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+
+        <!-- 🎯 FIX 1: Explicitly set BCRYPT_ROUNDS for testing to satisfy Hash::verifyConfiguration -->
+        <env name="BCRYPT_ROUNDS" value="10"/>
+
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+
+        <!-- Database Config for Testing -->
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_DATABASE" value="medibook_testing"/>
+
+        <!-- 🎯 FIX 2: HASH_DRIVER should be defined here, as you did -->
+        <env name="HASH_DRIVER" value="bcrypt"/>
+
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>
