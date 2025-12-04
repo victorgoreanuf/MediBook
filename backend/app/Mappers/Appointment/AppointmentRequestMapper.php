@@ -3,6 +3,7 @@
 namespace App\Mappers\Appointment;
 
 use App\DTOs\Appointment\CreateAppointmentDTO;
+use App\Models\User\User;
 use Illuminate\Http\Request;
 
 class AppointmentRequestMapper
@@ -13,8 +14,12 @@ class AppointmentRequestMapper
      */
     public static function fromRequest(Request $request): CreateAppointmentDTO
     {
+        // 1. Find the internal ID using the public UUID
+        $doctorUuid = $request->input('doctor_id');
+        $doctor = User::where('doctor_public_id', $doctorUuid)->firstOrFail();
+
         return new CreateAppointmentDTO(
-            doctorId: (int) $request->input('doctor_id'),
+            doctorId: (int) $doctor->id,
             // We assume the authenticated user is the patient
             patientId: (int) $request->user()->id,
             startTime: $request->input('start_time'),

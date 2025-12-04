@@ -26,7 +26,13 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('is_doctor, specialization, bio, available_hours');
+            $table->dropColumn([
+                'doctor_public_id',
+                'is_doctor',
+                'specialization',
+                'bio',
+                'available_hours'
+            ]);
         });
     }
 };

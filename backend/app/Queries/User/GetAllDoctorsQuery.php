@@ -7,12 +7,6 @@ use Illuminate\Database\Eloquent\Collection;
 
 class GetAllDoctorsQuery
 {
-    /**
-     * Get all users who are flagged as doctors.
-     * Use strict typing for the return value.
-     *
-     * @return Collection
-     */
     public function get(): Collection
     {
         return User::query()

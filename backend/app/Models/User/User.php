@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
  * @property string $password
  * @property string|null $remember_token
  * @property bool $is_doctor // Casted to boolean
+ * @property string|null $doctor_public_id
  * @property string|null $specialization
  * @property string|null $bio
  * @property array|null $available_hours // Casted to array
