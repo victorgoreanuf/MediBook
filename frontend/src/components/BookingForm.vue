@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 
 const props = defineProps({
@@ -8,68 +8,72 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'success'])
 
-const startTime = ref('')
-const loading = ref(false)
+// State
+const selectedDate = ref(new Date().toISOString().slice(0, 10)) // Today YYYY-MM-DD
+const slots = ref([])
+const selectedSlot = ref(null)
+const loadingSlots = ref(false)
+const submitting = ref(false)
 const error = ref('')
 
-// ROBUST END TIME CALCULATION
-// 1. Create a Date object from the user's input
-// 2. Add 1 Hour
-// 3. Manually format it to "YYYY-MM-DD HH:mm:ss" (Local Time) to avoid UTC shifts
+// Computed End Time (for display/submission)
 const endTime = computed(() => {
-  if (!startTime.value) return ''
-
-  const date = new Date(startTime.value)
-  date.setHours(date.getHours() + 1)
-
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  const h = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-
-  return `${y}-${m}-${d} ${h}:${min}:00`
+  if (!selectedSlot.value) return ''
+  const [h, m] = selectedSlot.value.split(':')
+  const endH = parseInt(h) + 1
+  return `${endH.toString().padStart(2, '0')}:${m}`
 })
 
-const submitBooking = async () => {
-  loading.value = true
+// Fetch Slots when Date Changes
+const fetchSlots = async () => {
+  if (!selectedDate.value) return
+
+  loadingSlots.value = true
+  selectedSlot.value = null // Reset selection
   error.value = ''
 
-  console.log('Selected Doctor:', props.doctor) // Debugging
-
-  // Format Start Time: "2025-10-10T10:00" -> "2025-10-10 10:00:00"
-  const formattedStart = startTime.value.replace('T', ' ') + ':00'
-  const formattedEnd = endTime.value // Computed property is already formatted
-
-  const payload = {
-    doctor_id: props.doctor.id,
-    start_time: formattedStart,
-    end_time: formattedEnd
+  try {
+    // Use the Public UUID from the prop
+    const response = await axios.get(`/api/v1/doctors/${props.doctor.id}/availability`, {
+      params: { date: selectedDate.value }
+    })
+    slots.value = response.data.data
+  } catch (err) {
+    console.error(err)
+    error.value = "Could not load schedule."
+  } finally {
+    loadingSlots.value = false
   }
+}
 
-  console.log('Sending Payload:', payload) // Debugging
+// Watch date changes to auto-fetch
+watch(selectedDate, fetchSlots, { immediate: true })
+
+const submitBooking = async () => {
+  if (!selectedSlot.value) return
+
+  submitting.value = true
+  error.value = ''
+
+  // Construct strict YYYY-MM-DD HH:mm:ss strings
+  const start = `${selectedDate.value} ${selectedSlot.value}:00`
+  const end = `${selectedDate.value} ${endTime.value}:00`
 
   try {
-    await axios.post('/api/v1/appointments', payload)
+    await axios.post('/api/v1/appointments', {
+      doctor_id: props.doctor.id,
+      start_time: start,
+      end_time: end
+    })
     emit('success')
-
   } catch (err) {
-    console.error('Booking Error:', err.response)
-
     if (err.response?.status === 422) {
-      // Handle Laravel Validation Errors
-      const errors = err.response.data.errors
-      if (errors) {
-        // Combine all error messages into a readable list
-        error.value = Object.values(errors).flat().join('\n')
-      } else {
-        error.value = err.response.data.message
-      }
+      error.value = err.response.data.message
     } else {
-      error.value = 'Booking failed. Please try a different slot.'
+      error.value = "Booking failed. Slot might have been taken."
     }
   } finally {
-    loading.value = false
+    submitting.value = false
   }
 }
 </script>
@@ -82,31 +86,60 @@ const submitBooking = async () => {
         <button @click="$emit('close')" class="btn-close">×</button>
       </div>
 
-      <form @submit.prevent="submitBooking">
+      <div class="booking-body">
+        <!-- 1. Pick Date -->
         <div class="form-group">
-          <label>Select Start Time</label>
-          <!-- Native DateTime Picker -->
+          <label>Select Date</label>
           <input
-              v-model="startTime"
-              type="datetime-local"
-              required
-              :min="new Date().toISOString().slice(0, 16)"
+              v-model="selectedDate"
+              type="date"
+              :min="new Date().toISOString().slice(0, 10)"
+              class="date-input"
           />
-          <small>Appointments are 1 hour long.</small>
+        </div>
+
+        <!-- 2. Pick Slot -->
+        <div class="form-group">
+          <label>Available Slots</label>
+
+          <div v-if="loadingSlots" class="loading-text">Checking schedule...</div>
+
+          <div v-else-if="slots.length === 0" class="empty-text">
+            No slots configured for this day.
+          </div>
+
+          <div v-else class="slots-grid">
+            <button
+                v-for="slot in slots"
+                :key="slot.time"
+                :disabled="slot.is_booked"
+                :class="{
+                                'slot-btn': true,
+                                'selected': selectedSlot === slot.time,
+                                'booked': slot.is_booked
+                            }"
+                @click="selectedSlot = slot.time"
+            >
+              {{ slot.time }}
+            </button>
+          </div>
         </div>
 
         <!-- Error Display -->
-        <div v-if="error" class="error-msg">
-          <span style="white-space: pre-line">{{ error }}</span>
-        </div>
+        <div v-if="error" class="error-msg">{{ error }}</div>
 
+        <!-- Actions -->
         <div class="actions">
-          <button type="button" @click="$emit('close')" class="btn-cancel">Cancel</button>
-          <button type="submit" :disabled="loading" class="btn-confirm">
-            {{ loading ? 'Booking...' : 'Confirm Booking' }}
+          <button @click="$emit('close')" class="btn-cancel">Cancel</button>
+          <button
+              @click="submitBooking"
+              :disabled="submitting || !selectedSlot"
+              class="btn-confirm"
+          >
+            {{ submitting ? 'Booking...' : (selectedSlot ? `Book ${selectedSlot}` : 'Select a Slot') }}
           </button>
         </div>
-      </form>
+      </div>
     </div>
   </div>
 </template>
@@ -114,27 +147,33 @@ const submitBooking = async () => {
 <style scoped>
 .modal-backdrop {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5);
-  display: flex; justify-content: center; align-items: center;
-  z-index: 1000;
+  background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000;
 }
 .modal-card {
-  background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;
 }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.modal-header h2 { margin: 0; font-size: 1.4rem; }
 .btn-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; }
 
 .form-group { margin-bottom: 20px; }
-.form-group label { display: block; margin-bottom: 8px; font-weight: bold; }
-.form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
-.form-group small { color: #666; margin-top: 5px; display: block; }
+.form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
+.date-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
 
-.error-msg { background: #fee2e2; color: #dc2626; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; }
+.slots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; }
+.slot-btn {
+  padding: 10px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;
+  font-weight: 500; transition: all 0.2s;
+}
+.slot-btn:hover:not(:disabled) { border-color: #007bff; color: #007bff; }
+.slot-btn.selected { background: #007bff; color: white; border-color: #007bff; }
+.slot-btn.booked { background: #f3f4f6; color: #ccc; cursor: not-allowed; text-decoration: line-through; border-color: #eee; }
 
-.actions { display: flex; gap: 10px; justify-content: flex-end; }
-.btn-cancel { padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer; }
-.btn-confirm { padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-.btn-confirm:disabled { background: #93c5fd; }
+.loading-text, .empty-text { color: #666; font-style: italic; text-align: center; padding: 10px; }
+.error-msg { background: #fee2e2; color: #dc2626; padding: 10px; border-radius: 6px; margin-bottom: 20px; text-align: center; }
+
+.actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.btn-cancel { padding: 12px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer; }
+.btn-confirm { padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.btn-confirm:disabled { background: #93c5fd; cursor: not-allowed; }
 </style>

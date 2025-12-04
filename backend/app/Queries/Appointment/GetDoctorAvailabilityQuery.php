@@ -3,42 +3,71 @@
 namespace App\Queries\Appointment;
 
 use App\Models\Appointment\Appointment;
-use Illuminate\Database\Eloquent\Collection;
+use App\Models\User\User;
+use Carbon\Carbon;
 
-final class GetDoctorAvailabilityQuery
+class GetDoctorAvailabilityQuery
 {
     /**
-     * Check if a doctor has any appointments overlapping with the requested time.
-     * * @param int $doctorId
-     * @param string $startTime
-     * @param string $endTime
-     * @return bool True if the slot is free (no appointments found).
+     * Check if a specific slot is valid and free.
      */
     public function isSlotAvailable(int $doctorId, string $startTime, string $endTime): bool
     {
-        // strictly typed logic as per [cite: 36]
-        return Appointment::query()
+        // 1. Check Intersection with existing appointments
+        $overlaps = Appointment::query()
             ->where('doctor_id', $doctorId)
             ->where(function ($query) use ($startTime, $endTime) {
-                // Logic: An appointment overlaps if it starts before the requested end
-                // AND ends after the requested start.
                 $query->where('start_time', '<', $endTime)
                     ->where('end_time', '>', $startTime);
             })
-            // We only care about active appointments, not cancelled ones
             ->where('status', '!=', 'cancelled')
-            ->doesntExist(); // Returns true if NO matching records exist
+            ->exists();
+
+        if ($overlaps) {
+            return false;
+        }
+
+        // 2. Validate against Doctor's Schedule
+        $doctor = User::find($doctorId);
+        $startCarbon = Carbon::parse($startTime);
+        $requestedTime = $startCarbon->format('H:i'); // "09:00"
+
+        // If doctor has specific hours, the requested time MUST be one of them
+        if ($doctor->available_hours && !in_array($requestedTime, $doctor->available_hours)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
-     * Get all appointments for a doctor on a specific day (for the calendar view).
+     * Get the full list of slots for a specific day with their status.
+     * Use this for the Frontend UI.
+     * * @return array [ ['time' => '09:00', 'is_booked' => false], ... ]
      */
-    public function getDailySchedule(int $doctorId, string $date): Collection
+    public function getDailySlots(int $doctorId, string $date): array
     {
-        return Appointment::query()
+        $doctor = User::findOrFail($doctorId);
+        $baseSlots = $doctor->available_hours ?? []; // e.g. ["09:00", "10:00"]
+
+        // Get all booked start times for this day
+        $bookedTimes = Appointment::query()
             ->where('doctor_id', $doctorId)
             ->whereDate('start_time', $date)
-            ->orderBy('start_time')
-            ->get();
+            ->where('status', '!=', 'cancelled')
+            ->pluck('start_time') // Returns collection of Carbon objects or strings
+            ->map(fn($t) => Carbon::parse($t)->format('H:i'))
+            ->toArray();
+
+        // Build the result array
+        $results = [];
+        foreach ($baseSlots as $time) {
+            $results[] = [
+                'time' => $time,
+                'is_booked' => in_array($time, $bookedTimes)
+            ];
+        }
+
+        return $results;
     }
 }
