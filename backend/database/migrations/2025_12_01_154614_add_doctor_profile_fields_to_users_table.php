@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
+            $table->uuid('doctor_public_id')->nullable()->unique()->after('id');
             $table->boolean('is_doctor')->default(false);
             $table->string('specialization')->nullable(); // might need to make it in a enum
             $table->text('bio')->nullable();
