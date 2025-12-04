@@ -9,47 +9,42 @@ use Tests\TestCase;
 
 class BookAppointmentTest extends TestCase
 {
-    // This trait ensures the DB transaction is rolled back after each test
-    // So your test data doesn't clutter your actual database.
     use RefreshDatabase;
 
     /**
-     * Test that a patient can successfully book an available slot.
+     * Test that a patient can successfully book an available slot using the Doctor's Public ID.
      */
     public function test_patient_can_book_available_slot()
     {
-        // 1. ARRANGE: Create the world state
-        // Create a doctor using our specific "doctor" state from the factory
+        // 1. ARRANGE
+        // The User model's boot() method will automatically generate a 'doctor_public_id' UUID
         $doctor = User::factory()->doctor()->create();
-
-        // Create a regular patient
         $patient = User::factory()->create(['is_doctor' => false]);
 
         // DYNAMIC DATES: Always book for "Tomorrow" at 9 AM
-        // This fixes the "start_time must be a date after now" error.
         $startTime = now()->addDay()->setHour(9)->setMinute(0)->setSecond(0);
         $endTime   = $startTime->copy()->addHour();
 
         // Define the booking data
         $payload = [
-            'doctor_id'  => $doctor->id,
+            // 🚨 CRITICAL CHANGE: Send the Public UUID, not the internal ID
+            'doctor_id'  => $doctor->doctor_public_id,
             'start_time' => $startTime->toDateTimeString(),
             'end_time'   => $endTime->toDateTimeString(),
         ];
 
-        // 2. ACT: Hit the API endpoint acting as the patient
+        // 2. ACT
         $response = $this->actingAs($patient)
             ->postJson('/api/v1/appointments', $payload);
 
-        // 3. ASSERT: Verify the result
-        // Check HTTP status code 201 (Created)
+        // 3. ASSERT
         $response->assertStatus(201)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', 'scheduled');
 
-        // Verify the data actually exists in the PostgreSQL database
+        // Verify the data exists in DB using the Internal IDs (because the Mapper converted it)
         $this->assertDatabaseHas('appointments', [
-            'doctor_id'  => $doctor->id,
+            'doctor_id'  => $doctor->id, // Database still stores Integer ID
             'patient_id' => $patient->id,
             'start_time' => $startTime->toDateTimeString(),
             'status'     => 'scheduled'
@@ -66,11 +61,10 @@ class BookAppointmentTest extends TestCase
         $patient1 = User::factory()->create();
         $patient2 = User::factory()->create();
 
-        // DYNAMIC DATES: Always book for "Tomorrow" at 9 AM
         $startTime = now()->addDay()->setHour(9)->setMinute(0)->setSecond(0);
         $endTime   = $startTime->copy()->addHour();
 
-        // Create an EXISTING appointment for Patient 1
+        // Create an EXISTING appointment (stored with internal IDs)
         Appointment::create([
             'doctor_id'  => $doctor->id,
             'patient_id' => $patient1->id,
@@ -82,9 +76,9 @@ class BookAppointmentTest extends TestCase
         ]);
 
         // 2. ACT
-        // Patient 2 tries to book the EXACT SAME slot
+        // Patient 2 tries to book the SAME slot using the Public UUID
         $payload = [
-            'doctor_id'  => $doctor->id,
+            'doctor_id'  => $doctor->doctor_public_id, // 🚨 Use UUID
             'start_time' => $startTime->toDateTimeString(),
             'end_time'   => $endTime->toDateTimeString(),
         ];
@@ -93,8 +87,7 @@ class BookAppointmentTest extends TestCase
             ->postJson('/api/v1/appointments', $payload);
 
         // 3. ASSERT
-        // Should fail with Server Error (500) because our Manager throws an Exception
-        // In a production app, we would catch this and return 422 (Unprocessable Entity)
+        // Expect 500 (Manager Exception) or 422
         $response->assertStatus(500);
     }
 }

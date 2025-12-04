@@ -20,11 +20,16 @@ class GetDoctorAvailabilityQueryTest extends TestCase
         $this->query = new GetDoctorAvailabilityQuery();
     }
 
+    /**
+     * Note: Queries and Managers usually operate on the Internal Integer ID
+     * because the Mapper layer has already resolved the UUID.
+     */
     public function test_it_returns_true_when_slot_is_free()
     {
         $doctor = User::factory()->doctor()->create();
 
-        // Check a random slot
+        // We pass the internal ID ($doctor->id) because this Query class
+        // works directly with the Database, not the HTTP Request.
         $isAvailable = $this->query->isSlotAvailable(
             $doctor->id,
             '2025-01-01 10:00:00',
@@ -39,7 +44,6 @@ class GetDoctorAvailabilityQueryTest extends TestCase
         $doctor = User::factory()->doctor()->create();
         $patient = User::factory()->create();
 
-        // Create an appointment 10:00 - 11:00
         Appointment::create([
             'doctor_id' => $doctor->id,
             'patient_id' => $patient->id,
@@ -50,7 +54,6 @@ class GetDoctorAvailabilityQueryTest extends TestCase
             'is_paid'    => false
         ]);
 
-        // Try to check 10:30 - 11:30 (Overlap!)
         $isAvailable = $this->query->isSlotAvailable(
             $doctor->id,
             '2025-01-01 10:30:00',
