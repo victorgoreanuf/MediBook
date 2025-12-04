@@ -7,6 +7,7 @@ use App\Http\Requests\Appointment\CreateAppointmentRequest;
 use App\Http\Resources\Appointment\AppointmentResource;
 use App\Managers\Appointment\AppointmentBookingManager;
 use App\Mappers\Appointment\AppointmentRequestMapper;
+use Exception;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -30,6 +31,7 @@ class AppointmentController extends Controller
      *
      * @param CreateAppointmentRequest $request
      * @return JsonResponse
+     * @throws Exception
      */
     public function store(CreateAppointmentRequest $request): JsonResponse
     {

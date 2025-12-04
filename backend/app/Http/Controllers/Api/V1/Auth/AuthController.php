@@ -10,7 +10,9 @@ use App\Managers\User\UserRegistrationManager;
 use App\Services\User\UserService;
 use App\DTOs\User\RegisterUserDTO;
 use App\Http\Resources\User\UserResource;
+use Exception;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
@@ -20,7 +22,7 @@ class AuthController extends Controller
     ) {}
 
     /**
-     * @throws \Exception
+     * @throws Exception
      */
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -53,6 +55,18 @@ class AuthController extends Controller
                 'user' => new UserResource($result['user']),
                 'token' => $result['token']
             ]
+        ]);
+    }
+
+    /**
+     * Log the user out (Invalidate the token).
+     */
+    public function logout(Request $request): JsonResponse
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'message' => 'Logged out successfully.'
         ]);
     }
 }

@@ -2,9 +2,13 @@
 
 namespace App\Http\Resources\Appointment;
 
+use App\Models\Appointment\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin Appointment
+ */
 class AppointmentResource extends JsonResource
 {
     /**

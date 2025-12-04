@@ -37,6 +37,7 @@ class UserResource extends JsonResource
 
         // 3. Doctor Specific Data (Visible to Everyone if the user is a doctor)
         if ($this->is_doctor) {
+            $data['id'] = $this->id;
             $data['specialization'] = $this->specialization;
             $data['bio'] = $this->bio;
             $data['available_hours'] = $this->available_hours;
