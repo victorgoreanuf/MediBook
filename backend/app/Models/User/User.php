@@ -12,6 +12,7 @@ use Laravel\Sanctum\HasApiTokens;
 use App\Models\Appointment\Appointment;
 use Illuminate\Support\Carbon; // Ensure Carbon is imported for timestamps
 use Illuminate\Support\Str;
+use App\Notifications\QueuedVerifyEmail;
 
 /**
  * @property int $id
@@ -92,5 +93,14 @@ class User extends Authenticatable
     public function patientAppointments(): HasMany
     {
         return $this->hasMany(Appointment::class, 'patient_id');
+    }
+
+    /**
+     * Send the email verification notification.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        // Dispatch the QUEUED notification
+        $this->notify(new QueuedVerifyEmail);
     }
 }

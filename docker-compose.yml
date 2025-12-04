@@ -89,6 +89,17 @@ services:
     # This command keeps the container running so we can exec into it
     command: sh -c "npm install && npm run dev -- --host"
 
+  # 7. Mailpit (Email Trap)
+  mailpit:
+    image: axllent/mailpit
+    container_name: medibook-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # The GUI (Open browser here)
+      - "1025:1025" # The SMTP port (Laravel connects here)
+    networks:
+      - default
+
 volumes:
   postgres_data:
   mongodb_data:

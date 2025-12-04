@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import Dashboard from '../views/Dashboard.vue'
+import VerifyEmail from '../views/VerifyEmail.vue'
 
 const routes = [
     {
@@ -21,6 +22,13 @@ const routes = [
         name: 'Dashboard',
         component: Dashboard,
         meta: { requiresAuth: true } // 🔒 Mark as "Protected"
+    },
+    {
+        // Capture the ID and Hash from the URL
+        path: '/verify-email/:id/:hash',
+        name: 'VerifyEmail',
+        component: VerifyEmail,
+        // No 'guest' guard because we NEED to be logged in to verify
     },
 ]
 

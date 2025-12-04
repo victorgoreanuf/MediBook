@@ -1,23 +1,22 @@
-# backend/Dockerfile
-
 FROM php:8.2-fpm-alpine
-  
-  # Install necessary extensions
+
+# Install necessary extensions
 RUN apk add --no-cache \
-postgresql-dev \
-  # Needed for MongoDB extension installation
-autoconf \
-g++ \
-make \
-  # Needed for basic utilities
-git
-  
-  # Install PDO PostgreSQL and MongoDB extension
+    postgresql-dev \
+    autoconf \
+    g++ \
+    make \
+    git
+
+# Install PDO PostgreSQL
 RUN docker-php-ext-install pdo pdo_pgsql
-RUN pecl install mongodb && docker-php-ext-enable mongodb
-  
-  # Install Composer
+
+# Install MongoDB AND Redis extensions
+RUN pecl install mongodb redis \
+    && docker-php-ext-enable mongodb redis  # <--- Added redis here
+
+# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-  
-  # Set working directory
+
+# Set working directory
 WORKDIR /var/www
