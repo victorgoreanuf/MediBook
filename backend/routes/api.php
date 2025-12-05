@@ -27,11 +27,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login', [AuthController::class, 'login']);
-
-        // 🚨 THIS IS THE FIX 🚨
-        // The name 'verification.verify' is mandatory for the notification to work.
         Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verify'])
-            ->middleware(['auth:sanctum', 'signed']) // 'signed' checks the hash
             ->name('verification.verify');
         // We need a route to resend the verification email
         Route::post('/email/verification-notification', [AuthController::class, 'resendVerification'])

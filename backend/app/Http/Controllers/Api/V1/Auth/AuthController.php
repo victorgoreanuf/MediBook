@@ -11,9 +11,10 @@ use App\DTOs\User\RegisterUserDTO;
 use App\Http\Resources\User\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
-// use Illuminate\Auth\Events\Registered; // <--- You can remove this now
-
+//use Illuminate\Foundation\Auth\EmailVerificationRequest;
+//use Illuminate\Auth\Events\Registered; // <--- You can remove this now
+use App\Models\User\User;
+use Illuminate\Auth\Events\Verified;
 class AuthController extends Controller
 {
     public function __construct(
@@ -55,11 +56,29 @@ class AuthController extends Controller
         return response()->json(['message' => 'Verification link sent.']);
     }
 
-    public function verify(EmailVerificationRequest $request): JsonResponse
+    public function verify(Request $request, string $id, string $hash): JsonResponse
     {
-        $request->fulfill();
+        // 1. Find the user by the ID passed in the URL
+        $user = User::findOrFail($id);
+
+        // 2. Check if the hash matches (Security Check)
+        if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            return response()->json(['message' => 'Invalid verification link.'], 403);
+        }
+
+        // 3. Check if already verified
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email already verified.']);
+        }
+
+        // 4. Mark as verified and fire event
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
+        }
+
         return response()->json(['message' => 'Email verified successfully.']);
     }
+
 
     public function login(LoginRequest $request): JsonResponse
     {
