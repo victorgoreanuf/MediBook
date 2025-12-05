@@ -26,6 +26,7 @@ class UserResource extends JsonResource
         ];
 
         if ($this->is_doctor) {
+            $data['is_doctor'] = $this->is_doctor;
             $data['id'] = $this->doctor_public_id;
             $data['specialization'] = $this->specialization;
             $data['bio'] = $this->bio;

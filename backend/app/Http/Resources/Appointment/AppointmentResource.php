@@ -27,6 +27,14 @@ class AppointmentResource extends JsonResource
                 'name' => $this->doctor->name,
                 'specialization' => $this->doctor->specialization,
             ],
+
+            'patient' => $this->when($request->user() && $request->user()->is_doctor, function () {
+                return [
+                    'id' => $this->patient->id,
+                    'name' => $this->patient->name,
+                    'email' => $this->patient->email, // Doctors need email to contact patients
+                ];
+            }),
             // We exclude 'created_at', 'updated_at', and 'price' if not needed for this view
         ];
     }

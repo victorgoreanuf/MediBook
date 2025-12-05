@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Appointment\AvailabilityController;
+use App\Http\Controllers\Api\V1\Appointment\DoctorScheduleController;
+use App\Http\Controllers\Api\V1\Doctor\DoctorProfileController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\Appointment\AppointmentController;
@@ -17,10 +19,25 @@ Route::prefix('v1')->group(function () {
         // Auth Actions
         Route::post('/auth/logout', [AuthController::class, 'logout']); // <--- NEW ROUTE
 
-        // Domain Actions
-        Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+        // List My Appointments
+        Route::get('/appointments', [AppointmentController::class, 'index'])
+            ->name('appointments.index');
+
+        // Book Appointment
+        Route::post('/appointments', [AppointmentController::class, 'store'])
+            ->name('appointments.store');
+
+        // Cancel Appointment
+        Route::patch('/appointments/{id}/cancel', [AppointmentController::class, 'cancel'])
+            ->name('appointments.cancel');
+
+
         Route::get('/doctors/{id}/availability', AvailabilityController::class);
         Route::get('/doctors', [DoctorController::class, 'index'])->name('doctors.index');
+
+        // Doctor
+        Route::get('/doctor/schedule', DoctorScheduleController::class);
+        Route::put('/doctor/profile', [DoctorProfileController::class, 'update']);
     });
 
     // Auth routes remain public
