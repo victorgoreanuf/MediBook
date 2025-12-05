@@ -9,6 +9,7 @@ final class NotificationService
 {
     public function sendConfirmation(Appointment $appointment): void
     {
+        // TO DO STILL
         // In a real app, this sends an email via Mail::to().
         // For this MVP, we log strictly to MongoDB as per requirements.
 

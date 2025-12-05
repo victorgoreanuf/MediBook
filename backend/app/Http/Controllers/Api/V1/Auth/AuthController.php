@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Auth;
 
+use App\Exceptions\Auth\InvalidCredentialsException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
@@ -9,12 +10,11 @@ use App\Managers\User\UserRegistrationManager;
 use App\Services\User\UserService;
 use App\DTOs\User\RegisterUserDTO;
 use App\Http\Resources\User\UserResource;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-//use Illuminate\Foundation\Auth\EmailVerificationRequest;
-//use Illuminate\Auth\Events\Registered; // <--- You can remove this now
-use App\Models\User\User;
-use Illuminate\Auth\Events\Verified;
+use Illuminate\Validation\ValidationException;
+
 class AuthController extends Controller
 {
     public function __construct(
@@ -22,18 +22,14 @@ class AuthController extends Controller
         private readonly UserService $userService
     ) {}
 
+    /**
+     * @throws Exception
+     */
     public function register(RegisterRequest $request): JsonResponse
     {
         $dto = RegisterUserDTO::fromRequest($request->validated());
 
-        // 1. Create the user
         $result = $this->registrationManager->register($dto);
-
-        // 2. 🚨 DIRECT TRIGGER 🚨
-        // Instead of firing an event and hoping a listener catches it,
-        // we explicitly tell the user model to queue the email.
-        // We know this method works because we tested it in Tinker.
-        $result['user']->sendEmailVerificationNotification();
 
         return response()->json([
             'message' => 'User registered successfully. Please check your email.',
@@ -44,51 +40,55 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // ... keep the rest of the methods (login, logout, verify, resend) exactly as they are ...
-    public function resendVerification(Request $request): JsonResponse
-    {
-        if ($request->user()->hasVerifiedEmail()) {
-            return response()->json(['message' => 'Email already verified.'], 400);
-        }
-
-        $request->user()->sendEmailVerificationNotification();
-
-        return response()->json(['message' => 'Verification link sent.']);
-    }
-
-    public function verify(Request $request, string $id, string $hash): JsonResponse
-    {
-        // 1. Find the user by the ID passed in the URL
-        $user = User::findOrFail($id);
-
-        // 2. Check if the hash matches (Security Check)
-        if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
-            return response()->json(['message' => 'Invalid verification link.'], 403);
-        }
-
-        // 3. Check if already verified
-        if ($user->hasVerifiedEmail()) {
-            return response()->json(['message' => 'Email already verified.']);
-        }
-
-        // 4. Mark as verified and fire event
-        if ($user->markEmailAsVerified()) {
-            event(new Verified($user));
-        }
-
-        return response()->json(['message' => 'Email verified successfully.']);
-    }
-
-
+    /**
+     * @throws InvalidCredentialsException
+     */
     public function login(LoginRequest $request): JsonResponse
     {
-        $result = $this->userService->authenticate($request->email, $request->password);
-        return response()->json(['message' => 'Login successful.', 'data' => ['user' => new UserResource($result['user']), 'token' => $result['token']]]);
+        $result = $this->userService->authenticate(
+            $request->email,
+            $request->password
+        );
+
+        return response()->json([
+            'message' => 'Login successful.',
+            'data' => [
+                'user' => new UserResource($result['user']),
+                'token' => $result['token']
+            ]
+        ]);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function verify(Request $request, string $id, string $hash): JsonResponse
+    {
+        $this->userService->verifyEmail($id, $hash);
+
+        return response()->json([
+            'message' => 'Email verified successfully.'
+        ]);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function resendVerification(Request $request): JsonResponse
+    {
+        $this->userService->resendVerification($request->user());
+
+        return response()->json([
+            'message' => 'Verification link sent.'
+        ]);
     }
 
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Logged out successfully.']);
+        $this->userService->logout($request->user());
+
+        return response()->json([
+            'message' => 'Logged out successfully.'
+        ]);
     }
 }

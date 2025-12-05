@@ -42,17 +42,10 @@ class Appointment extends Model
         'price' => 'decimal:2'
     ];
 
-    /**
-     * The Doctor associated with this appointment.
-     */
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'doctor_id');
     }
-
-    /**
-     * The Patient associated with this appointment.
-     */
     public function patient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'patient_id');

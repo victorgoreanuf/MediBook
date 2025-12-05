@@ -12,9 +12,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class AppointmentResource extends JsonResource
 {
     /**
-     * Transform the resource into an array.
-     * Use this to hide internal DB columns and format dates standardly.
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
@@ -24,7 +21,7 @@ class AppointmentResource extends JsonResource
             'status' => $this->status,
             'start_time' => $this->start_time->toIso8601String(),
             'end_time' => $this->end_time->toIso8601String(),
-            // Nested relationship data
+
             'doctor' => [
                 'id' => $this->doctor->id,
                 'name' => $this->doctor->name,

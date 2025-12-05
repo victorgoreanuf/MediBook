@@ -33,7 +33,6 @@ use App\Notifications\QueuedVerifyEmail;
  */
 class User extends Authenticatable
 {
-    // Add HasApiTokens to the list of traits
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
@@ -49,58 +48,36 @@ class User extends Authenticatable
 
     protected $casts = [
         'is_doctor' => 'boolean',
-        // Note: 'array' cast implies the property is an array in PHP code
         'available_hours' => 'array',
         'password' => 'hashed',
     ];
-
-    /**
-     * Explicitly link to the correct Factory
-     */
     protected static function newFactory(): Factory
     {
         return UserFactory::new();
     }
 
-    /**
-     * Bootstrap the model and auto-generate UUID for doctors.
-     */
     protected static function boot(): void
     {
         parent::boot();
 
         static::creating(function ($user) {
-            // If it's a doctor and doesn't have a public ID yet, generate one
             if ($user->is_doctor && empty($user->doctor_public_id)) {
                 $user->doctor_public_id = (string) Str::uuid();
             }
         });
     }
 
-    // --- Relationships ---
-
-    /**
-     * Appointments where this User is the Doctor.
-     */
     public function doctorAppointments(): HasMany
     {
         return $this->hasMany(Appointment::class, 'doctor_id');
     }
-
-    /**
-     * Appointments where this User is the Patient.
-     */
     public function patientAppointments(): HasMany
     {
         return $this->hasMany(Appointment::class, 'patient_id');
     }
 
-    /**
-     * Send the email verification notification.
-     */
     public function sendEmailVerificationNotification(): void
     {
-        // Dispatch the QUEUED notification
         $this->notify(new QueuedVerifyEmail);
     }
 }

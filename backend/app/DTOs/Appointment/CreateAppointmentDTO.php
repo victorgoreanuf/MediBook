@@ -6,13 +6,13 @@ namespace App\DTOs\Appointment;
  * This class defines exactly what is needed to book an appointment.
  * If a controller wants to book something, it MUST provide this object.
  */
-final class CreateAppointmentDTO
+final readonly class CreateAppointmentDTO
 {
     public function __construct(
-        public readonly int $doctorId,
-        public readonly int $patientId,
-        public readonly string $startTime,
-        public readonly string $endTime
+        public int $doctorId,
+        public int $patientId,
+        public string $startTime,
+        public string $endTime
     ) {}
 
     /**

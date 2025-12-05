@@ -21,11 +21,10 @@ class UserResource extends JsonResource
         $viewer = $request->user();
         $isOwner = $viewer && $viewer->id === $this->id;
 
-        // 2. Base Public Data (Always Visible)
         $data = [
             'name' => $this->name,
         ];
-        // 3. Doctor Specific Data (Visible to Everyone if the user is a doctor)
+
         if ($this->is_doctor) {
             $data['id'] = $this->doctor_public_id;
             $data['specialization'] = $this->specialization;
@@ -33,8 +32,6 @@ class UserResource extends JsonResource
             $data['available_hours'] = $this->available_hours;
         }
 
-        // 4. Private Data (Only Visible to Owner)
-        // We use $this->when() to conditionally add fields to the JSON response
         if ($isOwner) {
             $data['email'] = $this->email;
         }
