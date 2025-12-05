@@ -7,8 +7,8 @@ use App\Http\Requests\Appointment\CreateAppointmentRequest;
 use App\Http\Resources\Appointment\AppointmentResource;
 use App\Managers\Appointment\AppointmentBookingManager;
 use App\Mappers\Appointment\AppointmentRequestMapper;
-use Exception;
 use Illuminate\Http\JsonResponse;
+use Exception;
 
 class AppointmentController extends Controller
 {
@@ -25,12 +25,21 @@ class AppointmentController extends Controller
     {
         $dto = AppointmentRequestMapper::fromRequest($request);
 
-        $appointment = $this->appointmentManager->book($dto);
+        try {
+            $appointment = $this->appointmentManager->book($dto);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Appointment booked successfully.',
-            'data'    => new AppointmentResource($appointment),
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Appointment booked successfully.',
+                'data'    => new AppointmentResource($appointment),
+            ], 201);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error_code' => 'booking_conflict'
+            ], 409);
+        }
     }
 }
